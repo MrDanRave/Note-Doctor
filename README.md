@@ -6,16 +6,6 @@ An Obsidian plugin that keeps your notes healthy. Automatically marks new notes 
 
 ## Features
 
-### 💉 The Nurse
-Automatically applies a configurable *plaster tag* (default: `#INCOMPLETE`) to every new note the moment it is created. Two commands let you manage the tag manually from any note:
-
-| Command | Action |
-|---|---|
-| **The Nurse — Apply plaster tag** | Adds the plaster tag to the active note |
-| **The Nurse — Remove plaster tag** | Removes the plaster tag from the active note |
-
-Assign hotkeys to these commands in **Settings → Hotkeys** by searching for *"Nurse"*.
-
 ### 🩺 The Doctor — Patient Queue
 Opens a stacked card interface showing every note that carries the plaster tag. Cards slide in and out with animations as you move through the queue.
 
@@ -30,15 +20,16 @@ Opens a stacked card interface showing every note that carries the plaster tag. 
 
 The `← Previous` and `Next →` buttons let you navigate in both directions. Progress is shown as `current / total` (e.g. `5 / 40`).
 
----
+### 💉 The Nurse
+Automatically applies a configurable *plaster tag* (default: `#INCOMPLETE`) to every new note the moment it is created. Two commands let you manage the tag manually from any note:
 
-## Settings
-
-| Setting | Description |
+| Command | Action |
 |---|---|
-| **Plaster Tag** | Tag used to mark notes for the Doctor's review. Enter without `#`. Default: `INCOMPLETE` |
-| **The Nurse** | Auto-tags new notes and enables the apply/remove hotkey commands |
-| **Patient Queue** | Enables the Doctor's triage card view |
+| **The Nurse — Apply plaster tag** | Adds the plaster tag to the active note |
+| **The Nurse — Remove plaster tag** | Removes the plaster tag from the active note |
+
+Assign hotkeys to these commands in **Settings → Hotkeys** by searching for *"Nurse"*.
+
 
 ---
 
@@ -54,6 +45,17 @@ The `← Previous` and `Next →` buttons let you navigate in both directions. P
 
 ### Community Plugin Browser (pending review)
 Once approved, Note Doctor will be installable directly from **Settings → Community Plugins → Browse**.
+
+
+---
+
+## Settings
+
+| Setting | Description |
+|---|---|
+| **Plaster Tag** | Tag used to mark notes for the Doctor's review. Enter without `#`. Default: `INCOMPLETE` |
+| **The Nurse** | Auto-tags new notes and enables the apply/remove hotkey commands |
+| **Patient Queue** | Enables the Doctor's triage card view |
 
 ---
 
@@ -72,4 +74,4 @@ Requires Node 18+ and TypeScript 5+.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+see [LICENSE](LICENSE).
