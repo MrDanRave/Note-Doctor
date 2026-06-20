@@ -1,0 +1,10 @@
+{
+  "id": "note-doctor",
+  "name": "Note Doctor",
+  "version": "1.0.0",
+  "minAppVersion": "1.4.0",
+  "description": "Auto-tags new notes as #INCOMPLETE, and provides Complete/Mark-Incomplete commands and a triage stack for reviewing incomplete notes.",
+  "author": "",
+  "authorUrl": "",
+  "isDesktopOnly": false
+}

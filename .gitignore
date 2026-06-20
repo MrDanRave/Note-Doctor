@@ -1,0 +1,14 @@
+# Compiled output — included only in GitHub Releases, not in the repo tree
+main.js
+*.js.map
+
+# Dependencies
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
