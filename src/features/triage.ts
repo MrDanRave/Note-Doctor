@@ -23,7 +23,7 @@ export class TriageModal extends Modal {
 
     // Subtitle sits between the modal title bar and the content area —
     // inserted as a sibling of titleEl so it never participates in slide animations.
-    const subtitle = (this.doc as Document).createElement("div");
+    const subtitle = (this.containerEl.ownerDocument).createElement("div");
     subtitle.className = "note-doctor-triage-subtitle";
     subtitle.textContent = `Quickly review notes tagged #${this.tag}`;
     this.titleEl.insertAdjacentElement("afterend", subtitle);
@@ -130,7 +130,7 @@ export class TriageModal extends Modal {
   }
 
   private buildContainer(item: CardItem, active: CardItem[]): HTMLElement {
-    const container = (this.doc as Document).createElement("div");
+    const container = (this.containerEl.ownerDocument).createElement("div");
     container.className = "note-doctor-card-container";
 
     // ── Navigation bar ────────────────────────────────────────────────────
