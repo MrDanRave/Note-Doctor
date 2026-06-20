@@ -1,7 +1,7 @@
 {
   "name": "note-doctor",
   "version": "1.0.2",
-  "description": "Obsidian plugin: auto-tag, complete-note commands, and triage stack",
+  "description": "Keeps your notes healthy — auto-tag new notes, review and manage notes by tag.",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
@@ -9,7 +9,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "GPL-3.0",
+  "license": "GPL-3.0-only",
   "devDependencies": {
     "@types/node": "^16.18.96",
     "esbuild": "^0.28.1",

@@ -1,7 +1,8 @@
 # Note Doctor
 
-An Obsidian plugin that keeps your notes healthy. Automatically marks new notes as needing attention, then lets you triage them one by one through a swipeable patient queue — all within a clean, keyboard-driven interface.
+An Obsidian plugin that keeps your notes healthy — auto-tag new notes, review and manage notes by tag.
 
+>This software was vibe coded
 ---
 
 ## Features
