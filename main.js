@@ -421,6 +421,10 @@ var TriageModal = class extends import_obsidian3.Modal {
 
 // src/main.ts
 var NoteDoctorPlugin = class extends import_obsidian4.Plugin {
+  constructor() {
+    super(...arguments);
+    this.pendingTag = /* @__PURE__ */ new Set();
+  }
   async onload() {
     await this.loadSettings();
     this.addSettingTab(new NoteDoctorSettingTab(this.app, this));
@@ -432,16 +436,16 @@ var NoteDoctorPlugin = class extends import_obsidian4.Plugin {
         (cmd) => this.addCommand(cmd)
       );
       this.registerEvent(
-        this.app.vault.on("create", async (file) => {
+        this.app.vault.on("create", (file) => {
           if (!(file instanceof import_obsidian4.TFile) || file.extension !== "md") return;
-          await new Promise((r) => window.setTimeout(r, 100));
-          if (Date.now() - file.stat.ctime > 1e4) return;
-          const marker = `#${this.settings.triageTag}`;
-          await this.app.vault.process(file, (content) => {
-            if (content.includes(marker)) return content;
-            const base = content.trimEnd();
-            return base + "\n\n\n" + marker + "\n";
-          });
+          if (Date.now() - file.stat.ctime > 3e4) return;
+          this.pendingTag.add(file.path);
+          window.setTimeout(() => void this.applyPendingTag(file), 500);
+        })
+      );
+      this.registerEvent(
+        this.app.vault.on("modify", (file) => {
+          if (file instanceof import_obsidian4.TFile) void this.applyPendingTag(file);
         })
       );
     }
@@ -454,6 +458,16 @@ var NoteDoctorPlugin = class extends import_obsidian4.Plugin {
     }
   }
   onunload() {
+  }
+  async applyPendingTag(file) {
+    if (!this.pendingTag.has(file.path)) return;
+    this.pendingTag.delete(file.path);
+    const marker = `#${this.settings.triageTag}`;
+    await this.app.vault.process(file, (content) => {
+      if (content.includes(marker)) return content;
+      const base = content.trimEnd();
+      return base + "\n\n\n" + marker + "\n";
+    });
   }
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
