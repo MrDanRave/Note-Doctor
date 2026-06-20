@@ -2,6 +2,7 @@
 
 An Obsidian plugin that keeps your notes healthy — auto-tag new notes, review and manage notes by tag.
 
+>This software was vibe coded
 ---
 
 ## Features
