@@ -438,14 +438,13 @@ var NoteDoctorPlugin = class extends import_obsidian4.Plugin {
       this.registerEvent(
         this.app.vault.on("create", (file) => {
           if (!(file instanceof import_obsidian4.TFile) || file.extension !== "md") return;
-          if (Date.now() - file.stat.ctime > 3e4) return;
+          if (Date.now() - file.stat.ctime > 6e4) return;
           this.pendingTag.add(file.path);
-          window.setTimeout(() => void this.applyPendingTag(file), 500);
         })
       );
       this.registerEvent(
-        this.app.vault.on("modify", (file) => {
-          if (file instanceof import_obsidian4.TFile) void this.applyPendingTag(file);
+        this.app.workspace.on("file-open", async (file) => {
+          if (file instanceof import_obsidian4.TFile) await this.applyPendingTag(file);
         })
       );
     }

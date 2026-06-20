@@ -19,21 +19,20 @@ export default class NoteDoctorPlugin extends Plugin {
       );
 
       // On create: mark the file as pending.
-      // A 500 ms fallback tags it directly for users without a template plugin.
-      // If a template plugin writes content first, the modify handler fires
-      // sooner and tags after the template content is in place.
+      // 60 s ctime window is generous enough for slow/older hardware.
       this.registerEvent(
         this.app.vault.on("create", (file) => {
           if (!(file instanceof TFile) || file.extension !== "md") return;
-          if (Date.now() - file.stat.ctime > 30_000) return;
+          if (Date.now() - file.stat.ctime > 60_000) return;
           this.pendingTag.add(file.path);
-          window.setTimeout(() => void this.applyPendingTag(file), 500);
         })
       );
 
+      // On file-open: by this point every template plugin has finished
+      // writing, so we append the tag to whatever content is already there.
       this.registerEvent(
-        this.app.vault.on("modify", (file) => {
-          if (file instanceof TFile) void this.applyPendingTag(file);
+        this.app.workspace.on("file-open", async (file) => {
+          if (file instanceof TFile) await this.applyPendingTag(file);
         })
       );
     }
