@@ -46,7 +46,7 @@ export function renderCardStack(
   callbacks: CardStackCallbacks,
   app: App,
   tag: string
-): () => void {
+): () => Promise<void> {
   let stack = [...items];
 
   function render() {
@@ -72,7 +72,7 @@ export function renderCardStack(
       if (item.preview) {
         card.createEl("div", { cls: "note-doctor-card-preview", text: item.preview });
       } else {
-        app.vault.cachedRead(item.file).then((content) => {
+        void app.vault.cachedRead(item.file).then((content) => {
           const text = content
             .replace(/^---[\s\S]*?---\n?/, "")
             .replace(/#\w+/g, "")
@@ -89,10 +89,11 @@ export function renderCardStack(
       const actions = card.createEl("div", { cls: "note-doctor-card-actions" });
 
       const completeBtn = actions.createEl("button", { cls: "note-doctor-triage-btn note-doctor-triage-complete", text: "✓ Complete" });
-      completeBtn.addEventListener("click", async () => {
-        await callbacks.onComplete(item.file);
-        stack.shift();
-        render();
+      completeBtn.addEventListener("click", () => {
+        void callbacks.onComplete(item.file).then(() => {
+          stack.shift();
+          render();
+        });
       });
 
       const skipBtn = actions.createEl("button", { cls: "note-doctor-triage-btn note-doctor-triage-skip", text: "→ Skip" });

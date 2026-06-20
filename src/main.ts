@@ -10,7 +10,7 @@ export default class NoteDoctorPlugin extends Plugin {
     await this.loadSettings();
     this.addSettingTab(new NoteDoctorSettingTab(this.app, this));
 
-    injectTriageStyles(document);
+    injectTriageStyles(this.app.workspace.containerEl.ownerDocument);
 
     if (this.settings.enableCompleteNote) {
       registerCompleteNoteCommands(this.app, this.settings.triageTag, (cmd) =>
@@ -20,7 +20,7 @@ export default class NoteDoctorPlugin extends Plugin {
       this.registerEvent(
         this.app.vault.on("create", async (file) => {
           if (!(file instanceof TFile) || file.extension !== "md") return;
-          await new Promise((r) => setTimeout(r, 100));
+          await new Promise((r) => window.setTimeout(r, 100));
           // Only tag truly new files — ctime within 10 s of now.
           if (Date.now() - file.stat.ctime > 10_000) return;
           const marker = `#${this.settings.triageTag}`;
@@ -45,7 +45,7 @@ export default class NoteDoctorPlugin extends Plugin {
   onunload() {}
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<NoteDoctorSettings>);
   }
 
   async saveSettings() {
@@ -79,6 +79,9 @@ function injectTriageStyles(doc: Document) {
     /* ── Slide viewport ──────────────────────────────────────────────── */
     .note-doctor-slide-viewport {
       width: 100%;
+    }
+    .nd-height-locked {
+      height: var(--nd-h);
     }
     .nd-transitioning {
       position: relative;

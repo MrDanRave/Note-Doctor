@@ -23,7 +23,7 @@ export class TriageModal extends Modal {
 
     // Subtitle sits between the modal title bar and the content area —
     // inserted as a sibling of titleEl so it never participates in slide animations.
-    const subtitle = document.createElement("div");
+    const subtitle = this.doc.createElement("div");
     subtitle.className = "note-doctor-triage-subtitle";
     subtitle.textContent = `Quickly review notes tagged #${this.tag}`;
     this.titleEl.insertAdjacentElement("afterend", subtitle);
@@ -105,7 +105,8 @@ export class TriageModal extends Modal {
       return;
     }
 
-    viewport.style.height = `${viewport.getBoundingClientRect().height}px`;
+    viewport.style.setProperty("--nd-h", `${viewport.getBoundingClientRect().height}px`);
+    viewport.classList.add("nd-height-locked");
 
     const outClass = direction === "forward" ? "nd-slide-out-left"  : "nd-slide-out-right";
     const inClass  = direction === "forward" ? "nd-slide-in-right"  : "nd-slide-in-left";
@@ -121,14 +122,15 @@ export class TriageModal extends Modal {
       newContainer.classList.remove(inClass);
       oldContainer.remove();
       viewport.classList.remove("nd-transitioning");
-      viewport.style.height = "";
+      viewport.style.removeProperty("--nd-h");
+      viewport.classList.remove("nd-height-locked");
       this.busy = false;
     };
     newContainer.addEventListener("animationend", onDone);
   }
 
   private buildContainer(item: CardItem, active: CardItem[]): HTMLElement {
-    const container = document.createElement("div");
+    const container = this.doc.createElement("div");
     container.className = "note-doctor-card-container";
 
     // ── Navigation bar ────────────────────────────────────────────────────
@@ -161,7 +163,7 @@ export class TriageModal extends Modal {
       topCard.createEl("div", { cls: "note-doctor-card-preview", text: item.preview });
     } else {
       const previewEl = topCard.createEl("div", { cls: "note-doctor-card-preview" });
-      this.app.vault.cachedRead(item.file).then(content => {
+      void this.app.vault.cachedRead(item.file).then(content => {
         const text = content
           .replace(/^---[\s\S]*?---\n?/, "")
           .replace(/#\w+/g, "")
@@ -235,11 +237,11 @@ export class TriageModal extends Modal {
   private flashThen(btn: HTMLElement | undefined, cls: string, action: () => void | Promise<void>) {
     if (this.busy) return;
     this.busy = true;
-    if (!btn) { action(); return; }
+    if (!btn) { void action(); return; }
     btn.classList.add(cls);
     btn.addEventListener("animationend", () => {
       btn.classList.remove(cls);
-      action();
+      void action();
     }, { once: true });
   }
 
@@ -262,7 +264,7 @@ export class TriageModal extends Modal {
   private doOpen(item: CardItem, btn?: HTMLElement) {
     this.flashThen(btn, "nd-flash-blue", () => {
       this.close();
-      this.app.workspace.getLeaf("tab").openFile(item.file);
+      void this.app.workspace.getLeaf("tab").openFile(item.file);
     });
   }
 
