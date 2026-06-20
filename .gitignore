@@ -1,5 +1,3 @@
-# Compiled output — included only in GitHub Releases, not in the repo tree
-main.js
 *.js.map
 
 # Dependencies
