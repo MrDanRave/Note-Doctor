@@ -5,6 +5,7 @@ import { TriageModal } from "./features/triage";
 
 export default class NoteDoctorPlugin extends Plugin {
   settings: NoteDoctorSettings;
+  private pendingTag = new Set<string>();
 
   async onload() {
     await this.loadSettings();
@@ -17,18 +18,22 @@ export default class NoteDoctorPlugin extends Plugin {
         this.addCommand(cmd as Parameters<Plugin["addCommand"]>[0])
       );
 
+      // On create: mark the file as pending.
+      // A 500 ms fallback tags it directly for users without a template plugin.
+      // If a template plugin writes content first, the modify handler fires
+      // sooner and tags after the template content is in place.
       this.registerEvent(
-        this.app.vault.on("create", async (file) => {
+        this.app.vault.on("create", (file) => {
           if (!(file instanceof TFile) || file.extension !== "md") return;
-          await new Promise((r) => window.setTimeout(r, 100));
-          // Only tag truly new files — ctime within 10 s of now.
-          if (Date.now() - file.stat.ctime > 10_000) return;
-          const marker = `#${this.settings.triageTag}`;
-          await this.app.vault.process(file, (content) => {
-            if (content.includes(marker)) return content;
-            const base = content.trimEnd();
-            return base + "\n\n\n" + marker + "\n";
-          });
+          if (Date.now() - file.stat.ctime > 30_000) return;
+          this.pendingTag.add(file.path);
+          window.setTimeout(() => void this.applyPendingTag(file), 500);
+        })
+      );
+
+      this.registerEvent(
+        this.app.vault.on("modify", (file) => {
+          if (file instanceof TFile) void this.applyPendingTag(file);
         })
       );
     }
@@ -43,6 +48,17 @@ export default class NoteDoctorPlugin extends Plugin {
   }
 
   onunload() {}
+
+  private async applyPendingTag(file: TFile) {
+    if (!this.pendingTag.has(file.path)) return;
+    this.pendingTag.delete(file.path);
+    const marker = `#${this.settings.triageTag}`;
+    await this.app.vault.process(file, (content) => {
+      if (content.includes(marker)) return content;
+      const base = content.trimEnd();
+      return base + "\n\n\n" + marker + "\n";
+    });
+  }
 
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<NoteDoctorSettings>);
