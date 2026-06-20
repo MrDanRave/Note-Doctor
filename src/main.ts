@@ -212,6 +212,8 @@ function injectTriageStyles(doc: Document) {
     .note-doctor-triage-complete:hover   { background: var(--color-green);        color: #fff; }
     .note-doctor-triage-incomplete:hover { background: var(--color-red);          color: #fff; }
     .note-doctor-triage-open:hover       { background: var(--interactive-accent); color: #fff; }
+    .nd-btn-selected-green { background: var(--color-green)  !important; color: #fff !important; }
+    .nd-btn-selected-red   { background: var(--color-red)    !important; color: #fff !important; }
 
     /* ── Button flash animations ─────────────────────────────────────── */
     @keyframes nd-flash-green {
@@ -232,6 +234,52 @@ function injectTriageStyles(doc: Document) {
     .nd-flash-green { animation: nd-flash-green 0.28s ease both; }
     .nd-flash-red   { animation: nd-flash-red   0.28s ease both; }
     .nd-flash-blue  { animation: nd-flash-blue  0.28s ease both; }
+
+    /* ── Tag chip ────────────────────────────────────────────────────── */
+    .note-doctor-card-tag {
+      position: relative;
+      display: inline-block;
+      align-self: flex-start;
+      font-size: 11px;
+      color: var(--interactive-accent);
+      background: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
+      border-radius: 3px;
+      padding: 2px 7px;
+      overflow: hidden;
+    }
+    /* Static struck-through state (note already completed, card revisited) */
+    .nd-tag-struck::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      width: 100%;
+      height: 2px;
+      background: currentColor;
+      transform: translateY(-50%);
+    }
+    /* Animated strikethrough — line draws left to right */
+    @keyframes nd-strike-line {
+      from { width: 0; }
+      to   { width: 100%; }
+    }
+    .nd-strikethrough::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      width: 0;
+      height: 2px;
+      background: currentColor;
+      transform: translateY(-50%);
+      animation: nd-strike-line 0.35s ease-out forwards;
+    }
+
+    /* ── Nurse notice strikethrough ──────────────────────────────────── */
+    .nd-nurse-strike-tag {
+      text-decoration: line-through;
+      text-decoration-color: currentColor;
+    }
 
     /* ── Card slide animations ───────────────────────────────────────── */
     @keyframes nd-slide-out-left {

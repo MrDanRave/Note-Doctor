@@ -2,10 +2,11 @@ import { App, Modal, Notice } from "obsidian";
 import { INCOMPLETE_TAG, removeTag } from "../shared/tags";
 import { loadCandidates, CardItem } from "../shared/cardStack";
 
+type NoteStatus = "pending" | "complete" | "ignored";
+
 export class TriageModal extends Modal {
   private items: CardItem[] = [];
-  private completedPaths = new Set<string>();
-  private seen = new Set<string>();
+  private noteStatus = new Map<string, NoteStatus>();
   private currentIdx = 0;
   private busy = false;
 
@@ -23,12 +24,11 @@ export class TriageModal extends Modal {
 
     // Subtitle sits between the modal title bar and the content area —
     // inserted as a sibling of titleEl so it never participates in slide animations.
-    const subtitle = (this.containerEl.ownerDocument).createElement("div");
+    const subtitle = this.containerEl.ownerDocument.createElement("div");
     subtitle.className = "note-doctor-triage-subtitle";
     subtitle.textContent = `Quickly review notes tagged #${this.tag}`;
     this.titleEl.insertAdjacentElement("afterend", subtitle);
 
-    // Keys registered once; handlers resolve the current item dynamically.
     this.scope.register([], "u",      () => { this.triggerCurrentComplete(); return false; });
     this.scope.register([], "i",      () => { this.triggerCurrentIgnore();   return false; });
     this.scope.register([], "o",      () => { this.triggerCurrentReview();   return false; });
@@ -37,54 +37,48 @@ export class TriageModal extends Modal {
 
     const loaded = await loadCandidates(this.app, this.tag);
     if (loaded.length === 0) {
-      this.contentEl.createEl("p", { cls: "note-doctor-triage-done", text: "✓ No incomplete notes." });
+      this.contentEl.createEl("p", { cls: "note-doctor-triage-done", text: "✓ No notes to review." });
       return;
     }
 
     this.items = loaded;
+    for (const item of this.items) this.noteStatus.set(item.file.path, "pending");
     this.renderCard("none");
   }
 
   // ── helpers ──────────────────────────────────────────────────────────────
 
-  private activeItems(): CardItem[] {
-    return this.items.filter(i => !this.completedPaths.has(i.file.path));
+  private currentItem(): CardItem | null {
+    if (!this.items.length) return null;
+    return this.items[Math.min(this.currentIdx, this.items.length - 1)];
   }
 
   private navigate(direction: "forward" | "backward") {
-    const active = this.activeItems();
-    if (!active.length) return;
+    if (!this.items.length) return;
     this.currentIdx = direction === "forward"
-      ? (this.currentIdx + 1) % active.length
-      : (this.currentIdx - 1 + active.length) % active.length;
+      ? (this.currentIdx + 1) % this.items.length
+      : (this.currentIdx - 1 + this.items.length) % this.items.length;
     this.renderCard(direction);
+  }
+
+  private checkAllActioned(): boolean {
+    return this.items.every(i => this.noteStatus.get(i.file.path) !== "pending");
   }
 
   // ── render ────────────────────────────────────────────────────────────────
 
   private renderCard(direction: "forward" | "backward" | "none") {
-    const active = this.activeItems();
-
-    if (active.length === 0) {
+    if (!this.items.length) {
       this.contentEl.empty();
       this.close();
       new Notice("✓ All notes triaged.", 3000);
       return;
     }
 
-    if (this.currentIdx >= active.length) this.currentIdx = 0;
-    const item = active[this.currentIdx];
+    if (this.currentIdx >= this.items.length) this.currentIdx = 0;
+    const item = this.items[this.currentIdx];
 
-    if (direction !== "none" && active.every(i => this.seen.has(i.file.path))) {
-      this.contentEl.empty();
-      this.close();
-      new Notice("✓ Triage cycle complete.", 3000);
-      return;
-    }
-
-    this.seen.add(item.file.path);
-
-    const newContainer = this.buildContainer(item, active);
+    const newContainer = this.buildContainer(item);
     const viewport = this.contentEl.querySelector<HTMLElement>(".note-doctor-slide-viewport");
 
     // ── First render ──────────────────────────────────────────────────────
@@ -129,9 +123,10 @@ export class TriageModal extends Modal {
     newContainer.addEventListener("animationend", onDone);
   }
 
-  private buildContainer(item: CardItem, active: CardItem[]): HTMLElement {
-    const container = (this.containerEl.ownerDocument).createElement("div");
+  private buildContainer(item: CardItem): HTMLElement {
+    const container = this.containerEl.ownerDocument.createElement("div");
     container.className = "note-doctor-card-container";
+    const status = this.noteStatus.get(item.file.path) ?? "pending";
 
     // ── Navigation bar ────────────────────────────────────────────────────
     const navBar = container.createEl("div", { cls: "note-doctor-nav-bar" });
@@ -142,7 +137,7 @@ export class TriageModal extends Modal {
 
     navBar.createEl("span", {
       cls: "note-doctor-nav-counter",
-      text: `${this.currentIdx + 1} / ${active.length}`,
+      text: `${this.currentIdx + 1} / ${this.items.length}`,
     });
 
     const nextBtn = navBar.createEl("button", { cls: "note-doctor-nav-btn", text: "Next →" });
@@ -158,6 +153,13 @@ export class TriageModal extends Modal {
     const topCard = stackWrap.createEl("div", { cls: "note-doctor-card note-doctor-card-depth-0" });
 
     topCard.createEl("div", { cls: "note-doctor-card-title", text: item.file.basename });
+
+    // Tag chip — shows struck-through when note is already completed
+    const tagEl = topCard.createEl("div", {
+      cls: "note-doctor-card-tag",
+      text: `#${this.tag}`,
+    });
+    if (status === "complete") tagEl.addClass("nd-tag-struck");
 
     if (item.preview) {
       topCard.createEl("div", { cls: "note-doctor-card-preview", text: item.preview });
@@ -185,15 +187,17 @@ export class TriageModal extends Modal {
       cls: "note-doctor-triage-btn note-doctor-triage-complete",
       text: this.completeLabel,
     });
+    if (status === "complete") completeBtn.addClass("nd-btn-selected-green");
     completeBtn.addEventListener("mousedown", e => e.preventDefault());
-    completeBtn.addEventListener("click", () => this.doComplete(item, completeBtn));
+    completeBtn.addEventListener("click", () => this.doComplete(item, completeBtn, tagEl));
 
     const ignoreBtn = actions.createEl("button", {
       cls: "note-doctor-triage-btn note-doctor-triage-incomplete",
       text: "Ignore",
     });
+    if (status === "ignored") ignoreBtn.addClass("nd-btn-selected-red");
     ignoreBtn.addEventListener("mousedown", e => e.preventDefault());
-    ignoreBtn.addEventListener("click", () => this.doIgnore(ignoreBtn));
+    ignoreBtn.addEventListener("click", () => this.doIgnore(item, ignoreBtn));
 
     const reviewBtn = actions.createEl("button", {
       cls: "note-doctor-triage-btn note-doctor-triage-open",
@@ -207,65 +211,96 @@ export class TriageModal extends Modal {
 
   // ── hotkey trigger helpers ────────────────────────────────────────────────
 
-  private currentItem(): CardItem | null {
-    const active = this.activeItems();
-    if (!active.length) return null;
-    return active[Math.min(this.currentIdx, active.length - 1)];
-  }
-
   private triggerCurrentComplete() {
     const item = this.currentItem();
     if (!item) return;
-    const btn = this.contentEl.querySelector<HTMLButtonElement>(".note-doctor-triage-complete");
-    this.doComplete(item, btn ?? undefined);
+    const btn  = this.contentEl.querySelector<HTMLElement>(".note-doctor-triage-complete");
+    const tagEl = this.contentEl.querySelector<HTMLElement>(".note-doctor-card-tag");
+    this.doComplete(item, btn ?? undefined, tagEl ?? undefined);
   }
 
   private triggerCurrentIgnore() {
-    const btn = this.contentEl.querySelector<HTMLButtonElement>(".note-doctor-triage-incomplete");
-    this.doIgnore(btn ?? undefined);
+    const item = this.currentItem();
+    if (!item) return;
+    const btn = this.contentEl.querySelector<HTMLElement>(".note-doctor-triage-incomplete");
+    this.doIgnore(item, btn ?? undefined);
   }
 
   private triggerCurrentReview() {
     const item = this.currentItem();
     if (!item) return;
-    const btn = this.contentEl.querySelector<HTMLButtonElement>(".note-doctor-triage-open");
+    const btn = this.contentEl.querySelector<HTMLElement>(".note-doctor-triage-open");
     this.doOpen(item, btn ?? undefined);
-  }
-
-  // ── flash helper ──────────────────────────────────────────────────────────
-
-  private flashThen(btn: HTMLElement | undefined, cls: string, action: () => void | Promise<void>) {
-    if (this.busy) return;
-    this.busy = true;
-    if (!btn) { void action(); return; }
-    btn.classList.add(cls);
-    btn.addEventListener("animationend", () => {
-      btn.classList.remove(cls);
-      void action();
-    }, { once: true });
   }
 
   // ── actions ───────────────────────────────────────────────────────────────
 
-  private doComplete(item: CardItem, btn?: HTMLElement) {
-    this.flashThen(btn, "nd-flash-green", async () => {
+  private doComplete(item: CardItem, btn?: HTMLElement, tagEl?: HTMLElement) {
+    if (this.busy) return;
+    this.busy = true;
+
+    const finish = async () => {
       await removeTag(this.app, item.file, this.tag);
-      this.completedPaths.add(item.file.path);
-      const active = this.activeItems();
-      if (this.currentIdx >= active.length) this.currentIdx = Math.max(0, active.length - 1);
-      this.renderCard("forward");
-    });
+      this.noteStatus.set(item.file.path, "complete");
+      if (this.checkAllActioned()) {
+        new Notice("✓ Triage complete.", 3000);
+        this.close();
+        return;
+      }
+      this.navigate("forward");
+    };
+
+    const strikeAndFinish = () => {
+      if (!tagEl) { void finish(); return; }
+      tagEl.classList.add("nd-strikethrough");
+      tagEl.addEventListener("animationend", () => void finish(), { once: true });
+    };
+
+    if (!btn) { strikeAndFinish(); return; }
+    btn.classList.add("nd-flash-green");
+    btn.addEventListener("animationend", () => {
+      btn.classList.remove("nd-flash-green");
+      strikeAndFinish();
+    }, { once: true });
   }
 
-  private doIgnore(btn?: HTMLElement) {
-    this.flashThen(btn, "nd-flash-red", () => this.navigate("forward"));
+  private doIgnore(item: CardItem, btn?: HTMLElement) {
+    if (this.busy) return;
+    this.busy = true;
+
+    const finish = () => {
+      this.noteStatus.set(item.file.path, "ignored");
+      if (this.checkAllActioned()) {
+        new Notice("✓ Triage complete.", 3000);
+        this.close();
+        return;
+      }
+      this.navigate("forward");
+    };
+
+    if (!btn) { finish(); return; }
+    btn.classList.add("nd-flash-red");
+    btn.addEventListener("animationend", () => {
+      btn.classList.remove("nd-flash-red");
+      finish();
+    }, { once: true });
   }
 
   private doOpen(item: CardItem, btn?: HTMLElement) {
-    this.flashThen(btn, "nd-flash-blue", () => {
+    if (this.busy) return;
+    this.busy = true;
+
+    const finish = () => {
       this.close();
       void this.app.workspace.getLeaf("tab").openFile(item.file);
-    });
+    };
+
+    if (!btn) { finish(); return; }
+    btn.classList.add("nd-flash-blue");
+    btn.addEventListener("animationend", () => {
+      btn.classList.remove("nd-flash-blue");
+      finish();
+    }, { once: true });
   }
 
   onClose() {

@@ -1,6 +1,6 @@
 {
   "name": "note-doctor",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Keeps your notes healthy — auto-tag new notes, review and manage notes by tag.",
   "main": "main.js",
   "scripts": {

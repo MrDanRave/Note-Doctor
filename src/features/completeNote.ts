@@ -1,4 +1,4 @@
-import { App } from "obsidian";
+import { App, Notice } from "obsidian";
 import { addTag, hasTag, removeTag } from "../shared/tags";
 
 export function registerCompleteNoteCommands(app: App, tag: string, addCommand: (cmd: object) => void): void {
@@ -9,6 +9,9 @@ export function registerCompleteNoteCommands(app: App, tag: string, addCommand: 
       const file = app.workspace.getActiveFile();
       if (!file) return;
       await removeTag(app, file, tag);
+      const n = new Notice("", 2000);
+      n.noticeEl.createEl("span", { text: "Plaster removed: " });
+      n.noticeEl.createEl("span", { text: `#${tag}`, cls: "nd-nurse-strike-tag" });
     },
   });
 
