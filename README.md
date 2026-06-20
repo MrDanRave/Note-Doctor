@@ -74,4 +74,4 @@ Requires Node 18+ and TypeScript 5+.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+see [LICENSE](LICENSE).
