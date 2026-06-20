@@ -14,7 +14,7 @@ export class TriageModal extends Modal {
   }
 
   private get completeLabel(): string {
-    return this.tag === INCOMPLETE_TAG ? "Complete" : "Heal Tag";
+    return this.tag === INCOMPLETE_TAG ? "Complete" : "Heal";
   }
 
   async onOpen() {
@@ -23,7 +23,7 @@ export class TriageModal extends Modal {
 
     // Subtitle sits between the modal title bar and the content area —
     // inserted as a sibling of titleEl so it never participates in slide animations.
-    const subtitle = this.doc.createElement("div");
+    const subtitle = (this.doc as Document).createElement("div");
     subtitle.className = "note-doctor-triage-subtitle";
     subtitle.textContent = `Quickly review notes tagged #${this.tag}`;
     this.titleEl.insertAdjacentElement("afterend", subtitle);
@@ -130,7 +130,7 @@ export class TriageModal extends Modal {
   }
 
   private buildContainer(item: CardItem, active: CardItem[]): HTMLElement {
-    const container = this.doc.createElement("div");
+    const container = (this.doc as Document).createElement("div");
     container.className = "note-doctor-card-container";
 
     // ── Navigation bar ────────────────────────────────────────────────────

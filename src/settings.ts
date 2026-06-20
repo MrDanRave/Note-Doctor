@@ -24,7 +24,6 @@ export class NoteDoctorSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
-    new Setting(containerEl).setName("Note Doctor Settings").setHeading();
 
     new Setting(containerEl)
       .setName("Plaster Tag")

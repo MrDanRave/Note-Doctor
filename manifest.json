@@ -1,8 +1,8 @@
 {
   "id": "note-doctor",
   "name": "Note Doctor",
-  "version": "1.0.0",
-  "minAppVersion": "1.4.0",
+  "version": "1.0.2",
+  "minAppVersion": "1.6.0",
   "description": "Auto-tags new notes as #INCOMPLETE, and provides Complete/Mark-Incomplete commands and a triage stack for reviewing incomplete notes.",
   "author": "MrDanRave",
   "authorUrl": "https://github.com/MrDanRave",
