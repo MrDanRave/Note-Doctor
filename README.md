@@ -1,7 +1,7 @@
 # Note Doctor
 
 An Obsidian plugin that keeps your notes healthy — auto-tag new notes, review and manage notes by tag.
-<img width="1436" height="954" alt="Screen Recording 2026-06-20 191755" src="https://github.com/user-attachments/assets/8fd9f29e-0925-4802-b998-d7faf0f57e2b" />
+<img width="718" height="477" alt="Recording 2026-06-20 192224" src="https://github.com/user-attachments/assets/3a34bd69-f673-4843-8e30-c3a524792c61" />
 >This software was vibe coded
 ---
 
