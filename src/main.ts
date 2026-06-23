@@ -193,10 +193,17 @@ function injectTriageStyles(doc: Document) {
       color: var(--text-muted);
       flex: 1;
       overflow: hidden;
-      display: -webkit-box;
-      -webkit-line-clamp: 5;
-      -webkit-box-orient: vertical;
+      max-height: 120px;
       line-height: 1.5;
+    }
+    .note-doctor-card-preview p {
+      margin: 0 0 4px 0;
+    }
+    .note-doctor-card-preview p:last-child {
+      margin-bottom: 0;
+    }
+    .note-doctor-card-preview a {
+      color: var(--link-color);
     }
 
     /* ── Hotkey hints ─────────────────────────────────────────────────── */

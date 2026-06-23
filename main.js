@@ -286,14 +286,14 @@ var TriageModal = class extends import_obsidian3.Modal {
       text: `#${this.tag}`
     });
     if (status === "complete") tagEl.addClass("nd-tag-struck");
+    const previewEl = topCard.createEl("div", { cls: "note-doctor-card-preview" });
     if (item.preview) {
-      topCard.createEl("div", { cls: "note-doctor-card-preview", text: item.preview });
+      void import_obsidian3.MarkdownRenderer.render(this.app, item.preview, previewEl, item.file.path, this);
     } else {
-      const previewEl = topCard.createEl("div", { cls: "note-doctor-card-preview" });
-      void this.app.vault.cachedRead(item.file).then((content) => {
+      void this.app.vault.cachedRead(item.file).then(async (content) => {
         const text = content.replace(/^---[\s\S]*?---\n?/, "").replace(/#\w+/g, "").trim().slice(0, 300);
         item.preview = text;
-        previewEl.setText(text);
+        await import_obsidian3.MarkdownRenderer.render(this.app, text, previewEl, item.file.path, this);
       });
     }
     const hint = topCard.createEl("div", { cls: "note-doctor-card-hint" });
@@ -600,10 +600,17 @@ function injectTriageStyles(doc) {
       color: var(--text-muted);
       flex: 1;
       overflow: hidden;
-      display: -webkit-box;
-      -webkit-line-clamp: 5;
-      -webkit-box-orient: vertical;
+      max-height: 120px;
       line-height: 1.5;
+    }
+    .note-doctor-card-preview p {
+      margin: 0 0 4px 0;
+    }
+    .note-doctor-card-preview p:last-child {
+      margin-bottom: 0;
+    }
+    .note-doctor-card-preview a {
+      color: var(--link-color);
     }
 
     /* \u2500\u2500 Hotkey hints \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
