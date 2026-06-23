@@ -205,6 +205,9 @@ function injectTriageStyles(doc: Document) {
     .note-doctor-card-preview a {
       color: var(--link-color);
     }
+    .note-doctor-card-preview .copy-code-button {
+      display: none;
+    }
 
     /* ── Hotkey hints ─────────────────────────────────────────────────── */
     .note-doctor-card-hint {

@@ -612,6 +612,9 @@ function injectTriageStyles(doc) {
     .note-doctor-card-preview a {
       color: var(--link-color);
     }
+    .note-doctor-card-preview .copy-code-button {
+      display: none;
+    }
 
     /* \u2500\u2500 Hotkey hints \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
     .note-doctor-card-hint {
