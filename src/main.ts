@@ -189,12 +189,23 @@ function injectTriageStyles(doc: Document) {
       color: var(--text-normal);
     }
     .note-doctor-card-preview {
+      position: relative;
       font-size: 13px;
       color: var(--text-muted);
       flex: 1;
       overflow: hidden;
       max-height: 120px;
       line-height: 1.5;
+    }
+    .note-doctor-card-preview::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 40px;
+      background: linear-gradient(to bottom, transparent, var(--background-primary));
+      pointer-events: none;
     }
     .note-doctor-card-preview p {
       margin: 0 0 4px 0;
