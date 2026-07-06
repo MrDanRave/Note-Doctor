@@ -192,6 +192,14 @@ var TriageModal = class extends import_obsidian3.Modal {
       this.close();
       return false;
     });
+    this.scope.register([], "ArrowLeft", () => {
+      this.triggerNav("backward");
+      return false;
+    });
+    this.scope.register([], "ArrowRight", () => {
+      this.triggerNav("forward");
+      return false;
+    });
     const loaded = await loadCandidates(this.app, this.tag);
     if (loaded.length === 0) {
       this.contentEl.createEl("p", { cls: "note-doctor-triage-done", text: "\u2713 No notes to review." });
@@ -324,6 +332,16 @@ var TriageModal = class extends import_obsidian3.Modal {
     return container;
   }
   // ── hotkey trigger helpers ────────────────────────────────────────────────
+  triggerNav(direction) {
+    if (this.busy) return;
+    const btns = this.contentEl.querySelectorAll(".note-doctor-nav-btn");
+    const btn = direction === "forward" ? btns[btns.length - 1] : btns[0];
+    if (btn) {
+      btn.classList.add("nd-nav-pressed");
+      btn.addEventListener("animationend", () => btn.classList.remove("nd-nav-pressed"), { once: true });
+    }
+    this.navigate(direction);
+  }
   triggerCurrentComplete() {
     const item = this.currentItem();
     if (!item) return;
@@ -541,6 +559,12 @@ function injectTriageStyles(doc) {
       color: var(--text-normal);
       background: var(--background-modifier-hover);
     }
+    @keyframes nd-nav-press {
+      0%   { background: var(--background-modifier-hover); color: var(--text-normal); transform: scale(0.92); }
+      65%  { background: var(--background-modifier-hover); color: var(--text-normal); transform: scale(0.92); }
+      100% { background: none;                             color: var(--text-muted);  transform: scale(1);    }
+    }
+    .nd-nav-pressed { animation: nd-nav-press 0.18s ease-out forwards; }
     .note-doctor-nav-counter {
       font-size: 13px;
       color: var(--text-muted);

@@ -29,11 +29,13 @@ export class TriageModal extends Modal {
     subtitle.textContent = `Quickly review notes tagged #${this.tag}`;
     this.titleEl.insertAdjacentElement("afterend", subtitle);
 
-    this.scope.register([], "u",      () => { this.triggerCurrentComplete(); return false; });
-    this.scope.register([], "i",      () => { this.triggerCurrentIgnore();   return false; });
-    this.scope.register([], "o",      () => { this.triggerCurrentReview();   return false; });
-    this.scope.register([], "Enter",  () => { this.triggerCurrentReview();   return false; });
-    this.scope.register([], "Escape", () => { this.close();                  return false; });
+    this.scope.register([], "u",          () => { this.triggerCurrentComplete();    return false; });
+    this.scope.register([], "i",          () => { this.triggerCurrentIgnore();      return false; });
+    this.scope.register([], "o",          () => { this.triggerCurrentReview();      return false; });
+    this.scope.register([], "Enter",      () => { this.triggerCurrentReview();      return false; });
+    this.scope.register([], "Escape",     () => { this.close();                     return false; });
+    this.scope.register([], "ArrowLeft",  () => { this.triggerNav("backward");      return false; });
+    this.scope.register([], "ArrowRight", () => { this.triggerNav("forward");       return false; });
 
     const loaded = await loadCandidates(this.app, this.tag);
     if (loaded.length === 0) {
@@ -210,6 +212,17 @@ export class TriageModal extends Modal {
   }
 
   // ── hotkey trigger helpers ────────────────────────────────────────────────
+
+  private triggerNav(direction: "forward" | "backward") {
+    if (this.busy) return;
+    const btns = this.contentEl.querySelectorAll<HTMLElement>(".note-doctor-nav-btn");
+    const btn = direction === "forward" ? btns[btns.length - 1] : btns[0];
+    if (btn) {
+      btn.classList.add("nd-nav-pressed");
+      btn.addEventListener("animationend", () => btn.classList.remove("nd-nav-pressed"), { once: true });
+    }
+    this.navigate(direction);
+  }
 
   private triggerCurrentComplete() {
     const item = this.currentItem();

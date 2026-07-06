@@ -134,6 +134,12 @@ function injectTriageStyles(doc: Document) {
       color: var(--text-normal);
       background: var(--background-modifier-hover);
     }
+    @keyframes nd-nav-press {
+      0%   { background: var(--background-modifier-hover); color: var(--text-normal); transform: scale(0.92); }
+      65%  { background: var(--background-modifier-hover); color: var(--text-normal); transform: scale(0.92); }
+      100% { background: none;                             color: var(--text-muted);  transform: scale(1);    }
+    }
+    .nd-nav-pressed { animation: nd-nav-press 0.18s ease-out forwards; }
     .note-doctor-nav-counter {
       font-size: 13px;
       color: var(--text-muted);
