@@ -334,6 +334,7 @@ var TriageModal = class extends import_obsidian3.Modal {
   // ── hotkey trigger helpers ────────────────────────────────────────────────
   triggerNav(direction) {
     if (this.busy) return;
+    this.busy = true;
     const btns = this.contentEl.querySelectorAll(".note-doctor-nav-btn");
     const btn = direction === "forward" ? btns[btns.length - 1] : btns[0];
     if (btn) {

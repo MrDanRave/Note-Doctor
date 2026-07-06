@@ -215,6 +215,7 @@ export class TriageModal extends Modal {
 
   private triggerNav(direction: "forward" | "backward") {
     if (this.busy) return;
+    this.busy = true;
     const btns = this.contentEl.querySelectorAll<HTMLElement>(".note-doctor-nav-btn");
     const btn = direction === "forward" ? btns[btns.length - 1] : btns[0];
     if (btn) {
