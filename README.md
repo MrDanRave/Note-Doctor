@@ -28,6 +28,9 @@ Automatically applies a configurable *plaster tag* (default: `#INCOMPLETE`) to e
 |---|---|
 | **The Nurse — Apply plaster tag** | Adds the plaster tag to the active note |
 | **The Nurse — Remove plaster tag** | Removes the plaster tag from the active note |
+| **The Nurse — Cycle plaster tag** | Switches to the next plaster tag and shows a short toast naming it |
+
+The Nurse can hold several plasters (e.g. `INCOMPLETE`, `REVIEW`, `DRAFT`). Only one is active at a time — it's the one that gets auto-applied, applied/removed by the commands above, and reviewed by the Doctor.
 
 Assign hotkeys to these commands in **Settings → Hotkeys** by searching for *"Nurse"*.
 
@@ -54,7 +57,7 @@ Once approved, Note Doctor will be installable directly from **Settings → Comm
 
 | Setting | Description |
 |---|---|
-| **Plaster Tag** | Tag used to mark notes for the Doctor's review. Enter without `#`. Default: `INCOMPLETE` |
+| **Plaster Tags** | Tags used to mark notes for the Doctor's review. Enter without `#`. Use `+` to add a tag, the trash icon to delete one, and the radio button to choose the active one. Default: `INCOMPLETE` |
 | **The Nurse** | Auto-tags new notes and enables the apply/remove hotkey commands |
 | **Patient Queue** | Enables the Doctor's triage card view |
 

@@ -27,11 +27,16 @@ var import_obsidian4 = require("obsidian");
 
 // src/settings.ts
 var import_obsidian = require("obsidian");
+var FALLBACK_TAG = "INCOMPLETE";
 var DEFAULT_SETTINGS = {
   enableCompleteNote: true,
   enableTriage: true,
-  triageTag: "INCOMPLETE"
+  plasterTags: [FALLBACK_TAG],
+  activePlaster: 0
 };
+function sanitizeTag(value) {
+  return value.replace(/^#+/, "").trim();
+}
 var NoteDoctorSettingTab = class extends import_obsidian.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
@@ -40,25 +45,72 @@ var NoteDoctorSettingTab = class extends import_obsidian.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    new import_obsidian.Setting(containerEl).setName("Plaster Tag").setDesc("Tag used to mark notes for the Doctor's review. Enter without #").addText(
-      (text) => text.setPlaceholder("INCOMPLETE").setValue(this.plugin.settings.triageTag).onChange(async (value) => {
-        const sanitized = value.replace(/^#+/, "").trim() || "INCOMPLETE";
-        this.plugin.settings.triageTag = sanitized;
+    const s = this.plugin.settings;
+    new import_obsidian.Setting(containerEl).setName("Plaster Tags").setDesc("Tags used to mark notes for the Doctor's review. Enter without #. Select which plaster is active.").addExtraButton(
+      (btn) => btn.setIcon("plus").setTooltip("Add plaster tag").onClick(async () => {
+        var _a;
+        s.plasterTags.push("");
+        await this.plugin.saveSettings();
+        this.display();
+        const inputs = containerEl.querySelectorAll(".nd-plaster-row input[type=text]");
+        (_a = inputs[inputs.length - 1]) == null ? void 0 : _a.focus();
+      })
+    );
+    s.plasterTags.forEach((tag, idx) => {
+      const row = new import_obsidian.Setting(containerEl).setClass("nd-plaster-row");
+      row.infoEl.remove();
+      const radio = row.controlEl.createEl("input", {
+        type: "radio",
+        cls: "nd-plaster-radio",
+        attr: { name: "nd-active-plaster", "aria-label": "Set as active plaster" }
+      });
+      radio.checked = idx === s.activePlaster;
+      radio.addEventListener("change", async () => {
+        if (!radio.checked) return;
+        s.activePlaster = idx;
+        await this.plugin.saveSettings();
+      });
+      row.addText(
+        (text) => text.setPlaceholder(FALLBACK_TAG).setValue(tag).onChange(async (value) => {
+          s.plasterTags[idx] = sanitizeTag(value);
+          await this.plugin.saveSettings();
+        })
+      );
+      if (s.plasterTags.length > 1) {
+        row.addExtraButton(
+          (btn) => btn.setIcon("trash").setTooltip("Delete plaster tag").onClick(async () => {
+            s.plasterTags.splice(idx, 1);
+            if (s.activePlaster === idx) s.activePlaster = 0;
+            else if (s.activePlaster > idx) s.activePlaster--;
+            await this.plugin.saveSettings();
+            this.display();
+          })
+        );
+      }
+    });
+    new import_obsidian.Setting(containerEl).setName("The Nurse").setDesc("Auto-tags new notes with the active plaster tag. Applies, removes and cycles plasters via hotkey.").addToggle(
+      (toggle) => toggle.setValue(s.enableCompleteNote).onChange(async (value) => {
+        s.enableCompleteNote = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian.Setting(containerEl).setName("The Nurse").setDesc("Auto-tags new notes with the plaster tag. Removes plasters when called via hotkey.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.enableCompleteNote).onChange(async (value) => {
-        this.plugin.settings.enableCompleteNote = value;
+    new import_obsidian.Setting(containerEl).setName("Patient Queue").setDesc("Call the Doctor to review all notes with the active plaster tag.").addToggle(
+      (toggle) => toggle.setValue(s.enableTriage).onChange(async (value) => {
+        s.enableTriage = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian.Setting(containerEl).setName("Patient Queue").setDesc("Call the Doctor to review all notes with the plaster tag.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.enableTriage).onChange(async (value) => {
-        this.plugin.settings.enableTriage = value;
-        await this.plugin.saveSettings();
-      })
-    );
+  }
+  hide() {
+    const s = this.plugin.settings;
+    const active = s.plasterTags[s.activePlaster];
+    const cleaned = s.plasterTags.filter((t) => t !== "");
+    if (cleaned.length !== s.plasterTags.length) {
+      s.plasterTags = cleaned.length ? cleaned : [FALLBACK_TAG];
+      const newIdx = active ? s.plasterTags.indexOf(active) : -1;
+      s.activePlaster = newIdx >= 0 ? newIdx : 0;
+      void this.plugin.saveSettings();
+    }
   }
 };
 
@@ -99,28 +151,53 @@ async function addTag(app, file, tag) {
 }
 
 // src/features/completeNote.ts
-function registerCompleteNoteCommands(app, tag, addCommand) {
+function registerCompleteNoteCommands(app, host, addCommand) {
   addCommand({
     id: "complete-note",
     name: "The Nurse \u2014 Remove plaster tag",
-    callback: async () => {
+    checkCallback: (checking) => {
       const file = app.workspace.getActiveFile();
-      if (!file) return;
-      await removeTag(app, file, tag);
-      const n = new import_obsidian2.Notice("", 2e3);
-      n.noticeEl.createEl("span", { text: "Plaster removed: " });
-      n.noticeEl.createEl("span", { text: `#${tag}`, cls: "nd-nurse-strike-tag" });
+      if (!host.isEnabled() || !file) return false;
+      if (checking) return true;
+      const tag = host.getActiveTag();
+      void (async () => {
+        await removeTag(app, file, tag);
+        const n = new import_obsidian2.Notice("", 2e3);
+        n.noticeEl.createEl("span", { text: "Plaster removed: " });
+        n.noticeEl.createEl("span", { text: `#${tag}`, cls: "nd-nurse-strike-tag" });
+      })();
+      return true;
     }
   });
   addCommand({
     id: "mark-incomplete",
     name: "The Nurse \u2014 Apply plaster tag",
-    callback: async () => {
+    checkCallback: (checking) => {
       const file = app.workspace.getActiveFile();
-      if (!file) return;
-      if (!hasTag(app, file, tag)) {
-        await addTag(app, file, tag);
-      }
+      if (!host.isEnabled() || !file) return false;
+      if (checking) return true;
+      const tag = host.getActiveTag();
+      if (!hasTag(app, file, tag)) void addTag(app, file, tag);
+      return true;
+    }
+  });
+  addCommand({
+    id: "cycle-plaster",
+    name: "The Nurse \u2014 Cycle plaster tag",
+    checkCallback: (checking) => {
+      if (!host.isEnabled()) return false;
+      if (checking) return true;
+      void (async () => {
+        const next = await host.cyclePlaster();
+        const n = new import_obsidian2.Notice("", 1500);
+        if (next === null) {
+          n.noticeEl.createEl("span", { text: `Only one plaster: #${host.getActiveTag()}` });
+        } else {
+          n.noticeEl.createEl("span", { text: "Active plaster: " });
+          n.noticeEl.createEl("span", { text: `#${next}`, cls: "nd-nurse-active-tag" });
+        }
+      })();
+      return true;
     }
   });
 }
@@ -444,43 +521,64 @@ var NoteDoctorPlugin = class extends import_obsidian4.Plugin {
     super(...arguments);
     this.pendingTag = /* @__PURE__ */ new Set();
   }
+  /** The active plaster tag, always read live from settings. */
+  get activeTag() {
+    const { plasterTags, activePlaster } = this.settings;
+    return plasterTags[activePlaster] || plasterTags.find((t) => t) || FALLBACK_TAG;
+  }
   async onload() {
     await this.loadSettings();
     this.addSettingTab(new NoteDoctorSettingTab(this.app, this));
     injectTriageStyles(this.app.workspace.containerEl.ownerDocument);
-    if (this.settings.enableCompleteNote) {
-      registerCompleteNoteCommands(
-        this.app,
-        this.settings.triageTag,
-        (cmd) => this.addCommand(cmd)
-      );
-      this.registerEvent(
-        this.app.vault.on("create", (file) => {
-          if (!(file instanceof import_obsidian4.TFile) || file.extension !== "md") return;
-          if (Date.now() - file.stat.ctime > 6e4) return;
-          this.pendingTag.add(file.path);
-        })
-      );
-      this.registerEvent(
-        this.app.workspace.on("file-open", async (file) => {
-          if (file instanceof import_obsidian4.TFile) await this.applyPendingTag(file);
-        })
-      );
-    }
-    if (this.settings.enableTriage) {
-      this.addCommand({
-        id: "open-triage",
-        name: "Open Patient Queue",
-        callback: () => new TriageModal(this.app, this.settings.triageTag).open()
-      });
-    }
+    registerCompleteNoteCommands(
+      this.app,
+      {
+        isEnabled: () => this.settings.enableCompleteNote,
+        getActiveTag: () => this.activeTag,
+        cyclePlaster: () => this.cyclePlaster()
+      },
+      (cmd) => this.addCommand(cmd)
+    );
+    this.registerEvent(
+      this.app.vault.on("create", (file) => {
+        if (!this.settings.enableCompleteNote) return;
+        if (!(file instanceof import_obsidian4.TFile) || file.extension !== "md") return;
+        if (Date.now() - file.stat.ctime > 6e4) return;
+        this.pendingTag.add(file.path);
+      })
+    );
+    this.registerEvent(
+      this.app.workspace.on("file-open", async (file) => {
+        if (file instanceof import_obsidian4.TFile) await this.applyPendingTag(file);
+      })
+    );
+    this.addCommand({
+      id: "open-triage",
+      name: "Open Patient Queue",
+      checkCallback: (checking) => {
+        if (!this.settings.enableTriage) return false;
+        if (!checking) new TriageModal(this.app, this.activeTag).open();
+        return true;
+      }
+    });
   }
   onunload() {
+  }
+  /** Advance to the next non-empty plaster. Returns the new tag, or null if there's nothing to cycle to. */
+  async cyclePlaster() {
+    const { plasterTags } = this.settings;
+    const usable = plasterTags.map((t, i) => ({ t, i })).filter((x) => x.t);
+    if (usable.length < 2) return null;
+    const pos = usable.findIndex((x) => x.i === this.settings.activePlaster);
+    const next = usable[(pos + 1) % usable.length];
+    this.settings.activePlaster = next.i;
+    await this.saveSettings();
+    return next.t;
   }
   async applyPendingTag(file) {
     if (!this.pendingTag.has(file.path)) return;
     this.pendingTag.delete(file.path);
-    const marker = `#${this.settings.triageTag}`;
+    const marker = `#${this.activeTag}`;
     await this.app.vault.process(file, (content) => {
       if (content.includes(marker)) return content;
       const base = content.trimEnd();
@@ -488,7 +586,19 @@ var NoteDoctorPlugin = class extends import_obsidian4.Plugin {
     });
   }
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    var _a;
+    const data = await this.loadData();
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
+    this.settings.plasterTags = [...(_a = data == null ? void 0 : data.plasterTags) != null ? _a : DEFAULT_SETTINGS.plasterTags];
+    if (!(data == null ? void 0 : data.plasterTags) && (data == null ? void 0 : data.triageTag)) {
+      this.settings.plasterTags = [sanitizeTag(data.triageTag) || FALLBACK_TAG];
+      this.settings.activePlaster = 0;
+    }
+    delete this.settings.triageTag;
+    if (this.settings.plasterTags.length === 0) this.settings.plasterTags = [FALLBACK_TAG];
+    if (this.settings.activePlaster < 0 || this.settings.activePlaster >= this.settings.plasterTags.length) {
+      this.settings.activePlaster = 0;
+    }
   }
   async saveSettings() {
     await this.saveData(this.settings);
@@ -742,6 +852,13 @@ function injectTriageStyles(doc) {
       transform: translateY(-50%);
       animation: nd-strike-line 0.35s ease-out forwards;
     }
+
+    /* \u2500\u2500 Plaster tag rows in settings \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+    .nd-plaster-row { border-top: none; padding-top: 4px; padding-bottom: 4px; }
+    .nd-plaster-row .setting-item-control { justify-content: flex-start; gap: 8px; }
+    .nd-plaster-row input[type=text] { flex: 1; }
+    .nd-plaster-radio { margin: 0; cursor: pointer; }
+    .nd-nurse-active-tag { font-weight: 600; color: var(--text-accent); }
 
     /* \u2500\u2500 Nurse notice strikethrough \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
     .nd-nurse-strike-tag {

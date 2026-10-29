@@ -1,5 +1,5 @@
 import { Plugin, TFile } from "obsidian";
-import { DEFAULT_SETTINGS, NoteDoctorSettings, NoteDoctorSettingTab } from "./settings";
+import { DEFAULT_SETTINGS, FALLBACK_TAG, NoteDoctorSettings, NoteDoctorSettingTab, sanitizeTag } from "./settings";
 import { registerCompleteNoteCommands } from "./features/completeNote";
 import { TriageModal } from "./features/triage";
 
@@ -7,51 +7,78 @@ export default class NoteDoctorPlugin extends Plugin {
   settings: NoteDoctorSettings;
   private pendingTag = new Set<string>();
 
+  /** The active plaster tag, always read live from settings. */
+  get activeTag(): string {
+    const { plasterTags, activePlaster } = this.settings;
+    return plasterTags[activePlaster] || plasterTags.find(t => t) || FALLBACK_TAG;
+  }
+
   async onload() {
     await this.loadSettings();
     this.addSettingTab(new NoteDoctorSettingTab(this.app, this));
 
     injectTriageStyles(this.app.workspace.containerEl.ownerDocument);
 
-    if (this.settings.enableCompleteNote) {
-      registerCompleteNoteCommands(this.app, this.settings.triageTag, (cmd) =>
-        this.addCommand(cmd as Parameters<Plugin["addCommand"]>[0])
-      );
+    // Commands and events are always registered; each one checks the current
+    // settings when it runs, so edits in the settings tab apply immediately.
+    registerCompleteNoteCommands(
+      this.app,
+      {
+        isEnabled: () => this.settings.enableCompleteNote,
+        getActiveTag: () => this.activeTag,
+        cyclePlaster: () => this.cyclePlaster(),
+      },
+      (cmd) => this.addCommand(cmd as Parameters<Plugin["addCommand"]>[0])
+    );
 
-      // On create: mark the file as pending.
-      // 60 s ctime window is generous enough for slow/older hardware.
-      this.registerEvent(
-        this.app.vault.on("create", (file) => {
-          if (!(file instanceof TFile) || file.extension !== "md") return;
-          if (Date.now() - file.stat.ctime > 60_000) return;
-          this.pendingTag.add(file.path);
-        })
-      );
+    // On create: mark the file as pending.
+    // 60 s ctime window is generous enough for slow/older hardware.
+    this.registerEvent(
+      this.app.vault.on("create", (file) => {
+        if (!this.settings.enableCompleteNote) return;
+        if (!(file instanceof TFile) || file.extension !== "md") return;
+        if (Date.now() - file.stat.ctime > 60_000) return;
+        this.pendingTag.add(file.path);
+      })
+    );
 
-      // On file-open: by this point every template plugin has finished
-      // writing, so we append the tag to whatever content is already there.
-      this.registerEvent(
-        this.app.workspace.on("file-open", async (file) => {
-          if (file instanceof TFile) await this.applyPendingTag(file);
-        })
-      );
-    }
+    // On file-open: by this point every template plugin has finished
+    // writing, so we append the tag to whatever content is already there.
+    this.registerEvent(
+      this.app.workspace.on("file-open", async (file) => {
+        if (file instanceof TFile) await this.applyPendingTag(file);
+      })
+    );
 
-    if (this.settings.enableTriage) {
-      this.addCommand({
-        id: "open-triage",
-        name: "Open Patient Queue",
-        callback: () => new TriageModal(this.app, this.settings.triageTag).open(),
-      });
-    }
+    this.addCommand({
+      id: "open-triage",
+      name: "Open Patient Queue",
+      checkCallback: (checking) => {
+        if (!this.settings.enableTriage) return false;
+        if (!checking) new TriageModal(this.app, this.activeTag).open();
+        return true;
+      },
+    });
   }
 
   onunload() {}
 
+  /** Advance to the next non-empty plaster. Returns the new tag, or null if there's nothing to cycle to. */
+  async cyclePlaster(): Promise<string | null> {
+    const { plasterTags } = this.settings;
+    const usable = plasterTags.map((t, i) => ({ t, i })).filter(x => x.t);
+    if (usable.length < 2) return null;
+    const pos = usable.findIndex(x => x.i === this.settings.activePlaster);
+    const next = usable[(pos + 1) % usable.length];
+    this.settings.activePlaster = next.i;
+    await this.saveSettings();
+    return next.t;
+  }
+
   private async applyPendingTag(file: TFile) {
     if (!this.pendingTag.has(file.path)) return;
     this.pendingTag.delete(file.path);
-    const marker = `#${this.settings.triageTag}`;
+    const marker = `#${this.activeTag}`;
     await this.app.vault.process(file, (content) => {
       if (content.includes(marker)) return content;
       const base = content.trimEnd();
@@ -60,7 +87,22 @@ export default class NoteDoctorPlugin extends Plugin {
   }
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<NoteDoctorSettings>);
+    const data = (await this.loadData()) as Partial<NoteDoctorSettings> | null;
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
+    // Fresh array so DEFAULT_SETTINGS is never mutated.
+    this.settings.plasterTags = [...(data?.plasterTags ?? DEFAULT_SETTINGS.plasterTags)];
+
+    // Migrate v1.1.x single-tag setting.
+    if (!data?.plasterTags && data?.triageTag) {
+      this.settings.plasterTags = [sanitizeTag(data.triageTag) || FALLBACK_TAG];
+      this.settings.activePlaster = 0;
+    }
+    delete this.settings.triageTag;
+
+    if (this.settings.plasterTags.length === 0) this.settings.plasterTags = [FALLBACK_TAG];
+    if (this.settings.activePlaster < 0 || this.settings.activePlaster >= this.settings.plasterTags.length) {
+      this.settings.activePlaster = 0;
+    }
   }
 
   async saveSettings() {
@@ -316,6 +358,13 @@ function injectTriageStyles(doc: Document) {
       transform: translateY(-50%);
       animation: nd-strike-line 0.35s ease-out forwards;
     }
+
+    /* ── Plaster tag rows in settings ─────────────────────────────────── */
+    .nd-plaster-row { border-top: none; padding-top: 4px; padding-bottom: 4px; }
+    .nd-plaster-row .setting-item-control { justify-content: flex-start; gap: 8px; }
+    .nd-plaster-row input[type=text] { flex: 1; }
+    .nd-plaster-radio { margin: 0; cursor: pointer; }
+    .nd-nurse-active-tag { font-weight: 600; color: var(--text-accent); }
 
     /* ── Nurse notice strikethrough ──────────────────────────────────── */
     .nd-nurse-strike-tag {
